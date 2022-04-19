@@ -29,6 +29,7 @@
 import numpy as np
 import os
 import time
+import pynq
 from pynq import Overlay, allocate
 from pynq.ps import Clocks
 
@@ -425,74 +426,190 @@ class FINNExampleOverlay(Overlay):
         else:
             return outputs
 
-    def throughput_test(self):
+    def throughput_test(self, tests):
         """Run accelerator with empty inputs to measure throughput and other metrics.
         Returns dictionary with various metrics."""
         # dictionary for results of throughput test
         res = {}
-        start = time.time()
-        self.execute_on_buffers()
-        end = time.time()
-        runtime = end - start
-        res["runtime[ms]"] = runtime * 1000
-        res["throughput[images/s]"] = self.batch_size / runtime
+        measurements = []
+        
+        for _ in range(tests):
+            
+            start = time.time()
+            self.execute_on_buffers()
+            end = time.time()
+                        
+            runtime = end - start
+            measurements.append(self.batch_size / runtime)
+        
+        results = np.array(measurements)
+        res['Mean Throughput [ms]'] = results.mean()
+        res['Std'] = results.std()
+        res['N']   = tests
+        
+        #return res
+#         start = time.time()
+#         self.execute_on_buffers()
+#         end = time.time()
+#         #print("Execute on Buffers: End")
+#         runtime = end - start
+#         #print("Runtime: ", runtime)
+#         res["runtime[ms]"] = runtime * 1000
+#         res["throughput[images/s]"] = self.batch_size / runtime
+        #print("Throughput: ", res["throughput[images/s]"])
+        
         total_in = 0
         for i in range(self.num_inputs):
             total_in += np.prod(self.ishape_packed(i))
         res["DRAM_in_bandwidth[Mb/s]"] = total_in * 0.000001 / runtime
         total_out = 0
+        
         for o in range(self.num_outputs):
             total_out += np.prod(self.oshape_packed(o))
         res["DRAM_out_bandwidth[Mb/s]"] = total_out * 0.000001 / runtime
+        
         for iwdma, iwbuf, iwdma_name in self.external_weights:
             res["DRAM_extw_%s_bandwidth[Mb/s]" % iwdma_name] = (
                 self.batch_size * np.prod(iwbuf.shape) * 0.000001 / runtime
             )
+        
         if self.platform == "zynq-iodma":
             res["fclk[mhz]"] = Clocks.fclk0_mhz
         elif self.platform == "alveo":
             res["fclk[mhz]"] = self.clock_dict["clock0"]["frequency"]
         res["batch_size"] = self.batch_size
-        # also benchmark driver-related overheads
-        input_npy = gen_finn_dt_tensor(self.idt(), self.ishape_normal())
-        # provide as int8/uint8 to support fast packing path where possible
-        if self.idt() == DataType["UINT8"]:
-            input_npy = input_npy.astype(np.uint8)
-        elif self.idt() == DataType["INT8"]:
-            input_npy = input_npy.astype(np.int8)
-        start = time.time()
-        ibuf_folded = self.fold_input(input_npy)
-        end = time.time()
-        runtime = end - start
-        res["fold_input[ms]"] = runtime * 1000
 
-        start = time.time()
-        ibuf_packed = self.pack_input(ibuf_folded)
-        end = time.time()
-        runtime = end - start
-        res["pack_input[ms]"] = runtime * 1000
+        """ Program Crashes if the following is uncommented """
+#         # also benchmark driver-related overheads
+#         input_npy = gen_finn_dt_tensor(self.idt(), self.ishape_normal())
+#         # provide as int8/uint8 to support fast packing path where possible
+#         if self.idt() == DataType["UINT8"]:
+#             input_npy = input_npy.astype(np.uint8)
+#         elif self.idt() == DataType["INT8"]:
+#             input_npy = input_npy.astype(np.int8)
+#         start = time.time()
+#         ibuf_folded = self.fold_input(input_npy)
+#         end = time.time()
+#         runtime = end - start
+#         res["fold_input[ms]"] = runtime * 1000
+#         print(res)
+#         start = time.time()
+#         ibuf_packed = self.pack_input(ibuf_folded)
+#         end = time.time()
+#         runtime = end - start
+#         res["pack_input[ms]"] = runtime * 1000
 
-        start = time.time()
-        self.copy_input_data_to_device(ibuf_packed)
-        end = time.time()
-        runtime = end - start
-        res["copy_input_data_to_device[ms]"] = runtime * 1000
+#         start = time.time()
+#         self.copy_input_data_to_device(ibuf_packed)
+#         end = time.time()
+#         runtime = end - start
+#         res["copy_input_data_to_device[ms]"] = runtime * 1000
 
-        start = time.time()
-        self.copy_output_data_from_device(self.obuf_packed[0])
-        end = time.time()
-        runtime = end - start
-        res["copy_output_data_from_device[ms]"] = runtime * 1000
+#         start = time.time()
+#         self.copy_output_data_from_device(self.obuf_packed[0])
+#         end = time.time()
+#         runtime = end - start
+#         res["copy_output_data_from_device[ms]"] = runtime * 1000
+#         print(res)
+#         start = time.time()
+#         obuf_folded = self.unpack_output(self.obuf_packed[0])
+#         end = time.time()
+#         runtime = end - start
+#         res["unpack_output[ms]"] = runtime * 1000
 
-        start = time.time()
-        obuf_folded = self.unpack_output(self.obuf_packed[0])
-        end = time.time()
-        runtime = end - start
-        res["unpack_output[ms]"] = runtime * 1000
-
-        start = time.time()
-        self.unfold_output(obuf_folded)
-        end = time.time()
-        runtime = end - start
-        res["unfold_output[ms]"] = runtime * 1000
+#         start = time.time()
+#         self.unfold_output(obuf_folded)
+#         end = time.time()
+#         runtime = end - start
+#         res["unfold_output[ms]"] = runtime * 1000
+        
         return res
+
+    
+    def power_test(self, iterations):
+        """Run accelerator with empty inputs to measure throughput and other metrics.
+        Returns dictionary with various metrics."""
+        # dictionary for results of throughput test
+        res = {}
+        rails = pynq.get_rails()
+        recorder1 = pynq.DataRecorder(rails['INT'].power)
+        recorder2 = pynq.DataRecorder(rails['1V8'].power)
+        recorder3 = pynq.DataRecorder(rails['1V2'].power)
+        
+        c1 = []
+        c2 = []
+        c3 = []
+
+        n1 = 0
+        n2 = 0
+        n3 = 0
+        
+        for _ in range(iterations):
+            recorder1.reset()
+            recorder2.reset()
+            recorder3.reset()
+
+            recorder1.record(0.0001)
+            recorder2.record(0.0001)
+            recorder3.record(0.0001)
+            
+            self.execute_on_buffers()
+            
+            recorder1.stop()
+            recorder2.stop()
+            recorder3.stop()
+
+            a1 = np.array(recorder1.frame)
+            a2 = np.array(recorder2.frame)
+            a3 = np.array(recorder3.frame)
+
+            for i in range(len(a1)):
+                c1.append(a1[i,1])
+                n1 += 1
+
+            for i in range(len(a2)):
+                c2.append(a2[i,1])
+                n2 += 1
+
+            for i in range(len(a3)):
+                c3.append(a3[i,1])
+                n3 += 1
+            
+        r1 = np.array(c1)
+        res['INT: Mean'] = r1.mean()
+        res['INT: Std']  = r1.std()
+        res['INT: N']    = n1
+        
+        r2 = np.array(c2)
+        res['1V8: Mean'] = r2.mean()
+        res['1V8: Std']  = r2.std()
+        res['1V8: N']    = n2
+        
+        r3 = np.array(c3)
+        res['1V2: Mean'] = r3.mean()
+        res['1V2: Std']  = r3.std()
+        res['1V2: N']    = n3
+
+        return res
+
+    def latency_test(self, tests):
+        res = {}
+        
+        measurements = []
+        
+        for _ in range(tests):
+            
+            start = time.time()
+            self.execute_on_buffers()
+            end = time.time()
+                        
+            runtime = end - start
+            measurements.append(runtime * 1000)
+        
+        results = np.array(measurements)
+        res['Mean Latency [ms]'] = results.mean()
+        res['Std'] = results.std()
+        res['N']   = tests
+        
+        return res
+        

@@ -96,13 +96,41 @@ if __name__ == "__main__":
     elif exec_mode == "throughput_test":
         # remove old metrics file
         try:
-            os.remove("nw_metrics.txt")
+            os.remove("throughput_metrics.txt")
         except FileNotFoundError:
             pass
-        res = accel.throughput_test()
-        file = open("nw_metrics.txt", "w")
+        res = accel.throughput_test(1000)
+        file = open("throughput_metrics.txt", "w")
         file.write(str(res))
         file.close()
-        print("Results written to nw_metrics.txt")
+        print("Results written to throughput_metrics.txt")
+    elif exec_mode == "power_test":
+        # remove old metrics file
+        try:
+            os.remove("power_metrics.txt")
+        except FileNotFoundError:
+            pass
+        res = accel.power_test(100)
+        file = open("power_metrics.txt", "w")
+        file.write(str(res))
+        file.close()
+        print("Results written to power_metrics.txt")
+    elif exec_mode == "latency_test":
+        # remove old metrics file
+        try:
+            os.remove("latency_metrics.txt")
+        except FileNotFoundError:
+            pass
+        if batch_size == 2:
+            res = accel.latency_test(1000)
+            obuf_normal = np.empty_like(accel.obuf_packed_device[0])
+            accel.copy_output_data_from_device(obuf_normal)
+            print(obuf_normal)
+        else:
+            raise RuntimeError('Batch Size must be equal to 1 for latency tests')
+        file = open("latency_metrics.txt", "w")
+        file.write(str(res))
+        file.close()
+        print("Results written to latency_metrics.txt")
     else:
-        raise Exception("Exec mode has to be set to remote_pynq or throughput_test")
+        raise Exception("Exec mode has to be set to remote_pynq, throughput_test or power_test")

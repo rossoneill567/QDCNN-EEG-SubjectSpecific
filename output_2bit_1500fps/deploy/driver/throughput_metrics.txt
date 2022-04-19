@@ -1,0 +1,1 @@
+{'Mean Throughput [ms]': 1621.0522112254287, 'Std': 0.14031851461601394, 'N': 1000, 'DRAM_in_bandwidth[Mb/s]': 201.01540718094793, 'DRAM_out_bandwidth[Mb/s]': 0.006484367973578965, 'fclk[mhz]': 99.999, 'batch_size': 400}

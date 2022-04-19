@@ -1,0 +1,1 @@
+{'runtime[ms]': 615.9396171569824, 'throughput[images/s]': 1623.5357690023914, 'DRAM_in_bandwidth[Mb/s]': 201.31843535629653, 'DRAM_out_bandwidth[Mb/s]': 0.006494143076009566, 'fclk[mhz]': 99.999, 'batch_size': 1000}

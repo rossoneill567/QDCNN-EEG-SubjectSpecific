@@ -28,6 +28,7 @@
 
 import argparse
 import numpy as np
+import torch as th
 from driver import io_shape_dict
 from driver_base import FINNExampleOverlay
 
@@ -64,21 +65,24 @@ if __name__ == "__main__":
         trainx, trainy, testx, testy, valx, valy = mnist.load_mnist_data(
             dataset_root, download=True, one_hot=False
         )
-    elif dataset == "cifar10":
-        from dataset_loading import cifar
+        print("Train; ",trainz.shape)
+#     elif dataset == "cifar10":
+#         from dataset_loading import cifar
 
-        trainx, trainy, testx, testy, valx, valy = cifar.load_cifar_data(
-            dataset_root, download=True, one_hot=False
-        )
-    else:
-        raise Exception("Unrecognized dataset")
+#         trainx, trainy, testx, testy, valx, valy = cifar.load_cifar_data(
+#             dataset_root, download=True, one_hot=False
+#         )
+#     else:
+#         raise Exception("Unrecognized dataset")
 
-    test_imgs = testx
-    test_labels = testy
+    test_imgs = np.array(th.load('input_vars.pt', map_location=th.device('cpu')))#.numpy()#testx
+    test_labels = np.array(th.load('target_vars.pt', map_location=th.device('cpu')))#.numpy()#testy
+    #print("Shape", test_imgs)
 
     ok = 0
     nok = 0
     total = test_imgs.shape[0]
+    #print("Total: ", total)
 
     driver = FINNExampleOverlay(
         bitfile_name=bitfile,
@@ -94,7 +98,7 @@ if __name__ == "__main__":
     test_labels = test_labels.reshape(n_batches, bsize)
 
     for i in range(n_batches):
-        ibuf_normal = test_imgs[i].reshape(driver.ibuf_packed_device[0].shape)
+        ibuf_normal = test_imgs[i]#.reshape(driver.ibuf_packed_device[0].shape)
         exp = test_labels[i]
         driver.copy_input_data_to_device(ibuf_normal)
         driver.execute_on_buffers()
