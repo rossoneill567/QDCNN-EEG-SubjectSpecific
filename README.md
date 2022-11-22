@@ -3,3 +3,4 @@ D. Flood, N. Robinson and S. Shreejith, "FPGA-based Deep-Learning Accelerators f
 ## TCD EEE MAI Project by Daniel Flood (MAI 2022)
 ### Best Paper at IEEE COINS 2022
 ### Best MAI Project for Daniel Flood
+### The project is supported by Nvidia HER Grant ###
