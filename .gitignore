@@ -11,3 +11,4 @@ __pycache__/
 output_estimates_only/
 output_ipstitch_ooc_rtlsim/
 *.ipynb
+braindecode_FINN_Manual.ipynb
